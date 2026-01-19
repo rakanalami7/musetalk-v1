@@ -91,6 +91,13 @@ async def startup_event():
         logger.error(f"Failed to initialize models: {e}")
         raise
     
+    # Prepare default avatar in background
+    from server.api.v1.session import prepare_default_avatar_at_startup
+    import threading
+    avatar_thread = threading.Thread(target=prepare_default_avatar_at_startup, daemon=True)
+    avatar_thread.start()
+    logger.info("Default avatar preparation started in background")
+    
     logger.info("Server startup complete")
 
 

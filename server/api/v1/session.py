@@ -12,6 +12,10 @@ router = APIRouter()
 # In-memory session storage (use Redis in production)
 sessions: Dict[str, dict] = {}
 
+# Global cache for pre-prepared default avatar
+default_avatar_cache: Optional[Dict] = None
+default_avatar_lock = threading.Lock()
+
 class SessionCreateRequest(BaseModel):
     avatar_video_path: Optional[str] = None  # Optional custom avatar
 
@@ -26,6 +30,15 @@ class SessionStatusResponse(BaseModel):
     message: str
     avatar_prepared: bool
 
+def get_default_avatar_path():
+    """Get the path to the default avatar video."""
+    default_avatar = os.path.join(
+        os.path.dirname(__file__), 
+        "..", "..", "..", 
+        "assets", "demo", "video", "Video_Portrait_Generation_Request.mp4"
+    )
+    return os.path.abspath(default_avatar)
+
 @router.post("/create", response_model=SessionCreateResponse)
 async def create_session(
     request: SessionCreateRequest,
@@ -36,24 +49,22 @@ async def create_session(
     
     This endpoint:
     1. Creates a unique session ID
-    2. Starts avatar preparation in the background
-    3. Returns immediately with session ID
+    2. Uses pre-prepared default avatar if available (instant)
+    3. Or starts avatar preparation in background for custom avatars
     """
+    global default_avatar_cache
+    
     try:
         # Generate unique session ID
         session_id = str(uuid.uuid4())
         
-        # Use default avatar if none provided
+        # Determine avatar path
         if not request.avatar_video_path:
-            # Default avatar from MuseTalk assets
-            default_avatar = os.path.join(
-                os.path.dirname(__file__), 
-                "..", "..", "..", 
-                "assets", "demo", "video", "Video_Portrait_Generation_Request.mp4"
-            )
-            avatar_path = os.path.abspath(default_avatar)
+            avatar_path = get_default_avatar_path()
+            use_default = True
         else:
             avatar_path = request.avatar_video_path
+            use_default = False
         
         # Verify avatar exists
         if not os.path.exists(avatar_path):
@@ -62,7 +73,24 @@ async def create_session(
                 detail=f"Avatar video not found: {avatar_path}"
             )
         
-        # Initialize session
+        # If using default avatar and it's pre-prepared, use cached data
+        if use_default and default_avatar_cache is not None:
+            with default_avatar_lock:
+                sessions[session_id] = {
+                    "status": "ready",
+                    "avatar_path": avatar_path,
+                    "avatar_prepared": True,
+                    "error": None,
+                    "precomputed_data": default_avatar_cache.copy()
+                }
+            
+            return SessionCreateResponse(
+                session_id=session_id,
+                status="ready",
+                message="Session created with pre-prepared avatar. Ready to generate!"
+            )
+        
+        # Otherwise, prepare avatar in background
         sessions[session_id] = {
             "status": "preparing",
             "avatar_path": avatar_path,
@@ -71,7 +99,6 @@ async def create_session(
         }
         
         # Start avatar preparation in background using threading
-        # This ensures it truly runs in the background and doesn't block the response
         thread = threading.Thread(target=prepare_avatar_sync, args=(session_id, avatar_path), daemon=True)
         thread.start()
         
@@ -293,10 +320,57 @@ def prepare_avatar_sync(session_id: str, avatar_path: str):
         
         print(f"[Session {session_id}] Avatar preparation complete!")
         
+        # If this is the default avatar, cache it globally
+        if avatar_path == get_default_avatar_path():
+            global default_avatar_cache
+            with default_avatar_lock:
+                default_avatar_cache = sessions[session_id]["precomputed_data"].copy()
+                print(f"[Global] Default avatar cached for future sessions!")
+        
     except Exception as e:
         sessions[session_id]["status"] = "error"
         sessions[session_id]["error"] = str(e)
         print(f"Error preparing avatar for session {session_id}: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def prepare_default_avatar_at_startup():
+    """
+    Prepare the default avatar when the server starts.
+    This runs in a background thread so it doesn't block server startup.
+    """
+    global default_avatar_cache
+    
+    print("[Startup] Preparing default avatar in background...")
+    
+    try:
+        avatar_path = get_default_avatar_path()
+        
+        if not os.path.exists(avatar_path):
+            print(f"[Startup] Warning: Default avatar not found at {avatar_path}")
+            return
+        
+        # Create a temporary session ID for preparation
+        temp_session_id = "default_avatar_startup"
+        sessions[temp_session_id] = {
+            "status": "preparing",
+            "avatar_path": avatar_path,
+            "avatar_prepared": False,
+            "error": None,
+        }
+        
+        # Run the preparation
+        prepare_avatar_sync(temp_session_id, avatar_path)
+        
+        # The cache will be set automatically in prepare_avatar_sync
+        print("[Startup] Default avatar preparation complete and cached!")
+        
+        # Clean up temp session
+        del sessions[temp_session_id]
+        
+    except Exception as e:
+        print(f"[Startup] Error preparing default avatar: {e}")
         import traceback
         traceback.print_exc()
 
