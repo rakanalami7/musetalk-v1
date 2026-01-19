@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     PARSING_MODE: str = "jaw"  # raw or jaw
     LEFT_CHEEK_WIDTH: int = 90
     RIGHT_CHEEK_WIDTH: int = 90
+    BBOX_SHIFT: int = 0  # For v1.0 compatibility
+    
+    # MuseTalk Root (for finding assets)
+    MUSETALK_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
     # Security Settings (optional)
     SECRET_KEY: Optional[str] = None
