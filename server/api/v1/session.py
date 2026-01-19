@@ -4,6 +4,7 @@ from typing import Optional, Dict
 import uuid
 import os
 import torch
+import threading
 from pathlib import Path
 
 router = APIRouter()
@@ -69,8 +70,10 @@ async def create_session(
             "error": None,
         }
         
-        # Start avatar preparation in background
-        background_tasks.add_task(prepare_avatar, session_id, avatar_path)
+        # Start avatar preparation in background using threading
+        # This ensures it truly runs in the background and doesn't block the response
+        thread = threading.Thread(target=prepare_avatar_sync, args=(session_id, avatar_path), daemon=True)
+        thread.start()
         
         return SessionCreateResponse(
             session_id=session_id,
@@ -116,9 +119,10 @@ async def delete_session(session_id: str):
     
     return {"message": "Session deleted successfully"}
 
-async def prepare_avatar(session_id: str, avatar_path: str):
+def prepare_avatar_sync(session_id: str, avatar_path: str):
     """
-    Background task to prepare the avatar for generation.
+    Synchronous background task to prepare the avatar for generation.
+    Runs in a separate thread to avoid blocking the API response.
     
     This involves:
     1. Loading the avatar video
