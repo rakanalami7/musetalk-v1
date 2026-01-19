@@ -185,7 +185,7 @@ async def prepare_avatar(session_id: str, avatar_path: str):
         print(f"[Session {session_id}] Detecting faces and extracting landmarks...")
         coord_list, frame_list = get_landmark_and_bbox(
             input_img_list, 
-            bbox_shift=settings.BBOX_SHIFT
+            upperbondrange=settings.BBOX_SHIFT
         )
         
         # Step 3: VAE encoding (pre-computation)
