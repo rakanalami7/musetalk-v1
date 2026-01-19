@@ -135,9 +135,9 @@ async def prepare_avatar(session_id: str, avatar_path: str):
         import pickle
         import json
         import asyncio
-        from musetalk.utils.preprocessing import get_landmark_and_bbox
+        from musetalk.utils.preprocessing import get_landmark_and_bbox, read_imgs
         from musetalk.utils.blending import get_image_prepare_material
-        from musetalk.utils.utils import read_imgs, video2imgs
+        from musetalk.utils.utils import get_video_fps
         from server.config import settings
         from fastapi import FastAPI
         
@@ -165,7 +165,18 @@ async def prepare_avatar(session_id: str, avatar_path: str):
         
         # Step 1: Extract video frames
         print(f"[Session {session_id}] Extracting video frames...")
-        video2imgs(avatar_path, str(full_imgs_path), ext='png')
+        # Extract frames from video
+        fps = get_video_fps(avatar_path)
+        cap = cv2.VideoCapture(avatar_path)
+        count = 0
+        while True:
+            ret, frame = cap.read()
+            if ret:
+                cv2.imwrite(f"{full_imgs_path}/{count:08d}.png", frame)
+                count += 1
+            else:
+                break
+        cap.release()
         
         input_img_list = sorted(list(full_imgs_path.glob("*.png")))
         input_img_list = [str(img) for img in input_img_list]
@@ -254,6 +265,7 @@ async def prepare_avatar(session_id: str, avatar_path: str):
             "video_path": avatar_path,
             "num_frames": len(frame_list),
             "num_frames_cycle": len(frame_list_cycle),
+            "fps": fps,
             "bbox_shift": settings.BBOX_SHIFT,
             "version": settings.MUSETALK_VERSION,
         }
