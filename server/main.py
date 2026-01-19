@@ -51,6 +51,8 @@ app.add_middleware(
     allow_credentials=settings.CORS_CREDENTIALS,
     allow_methods=settings.CORS_METHODS,
     allow_headers=settings.CORS_HEADERS,
+    expose_headers=["*"],  # Expose all headers
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Mount static files for serving results

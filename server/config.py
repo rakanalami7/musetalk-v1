@@ -23,7 +23,12 @@ class Settings(BaseSettings):
     RELOAD: bool = False
     
     # CORS Settings
-    CORS_ORIGINS: list = ["*"]
+    CORS_ORIGINS: list = [
+        "*",  # Allow all origins (for development)
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://localhost:3000",
+    ]
     CORS_CREDENTIALS: bool = True
     CORS_METHODS: list = ["*"]
     CORS_HEADERS: list = ["*"]

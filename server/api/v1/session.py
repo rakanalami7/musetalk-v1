@@ -130,7 +130,6 @@ async def prepare_avatar(session_id: str, avatar_path: str):
     This follows MuseTalk's real-time inference preparation phase.
     """
     try:
-        from server.main import model_manager
         import cv2
         import numpy as np
         import pickle
@@ -140,9 +139,15 @@ async def prepare_avatar(session_id: str, avatar_path: str):
         from musetalk.utils.blending import get_image_prepare_material
         from musetalk.utils.utils import read_imgs, video2imgs
         from server.config import settings
+        from fastapi import FastAPI
         
         # Update status
         sessions[session_id]["status"] = "preparing"
+        
+        # Get model_manager from app state
+        # We need to import app here to avoid circular imports
+        from server.main import app
+        model_manager = app.state.model_manager
         
         # Get models
         models = model_manager.get_models()

@@ -33,7 +33,6 @@ async def generate_text_to_video(request: GenerateRequest):
     """
     try:
         from server.api.v1.session import sessions
-        from server.main import model_manager
         
         # Verify session exists and is ready
         if request.session_id not in sessions:
@@ -194,7 +193,6 @@ async def generate_video_musetalk(
     """
     try:
         from server.api.v1.session import sessions
-        from server.main import model_manager
         import cv2
         import numpy as np
         import torch
@@ -204,6 +202,10 @@ async def generate_video_musetalk(
         from musetalk.utils.blending import get_image_blending
         from musetalk.utils.utils import datagen
         from server.config import settings
+        
+        # Get model_manager from app state
+        from server.main import app
+        model_manager = app.state.model_manager
         
         # Get session data
         if session_id not in sessions:
