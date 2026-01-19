@@ -2,14 +2,12 @@
 API v1 Router
 """
 from fastapi import APIRouter
-from server.api.v1 import health
+from server.api.v1 import health, session, generate
 
 api_router = APIRouter()
 
 # Include endpoint routers
 api_router.include_router(health.router, prefix="/health", tags=["health"])
-
-# More routers will be added here as we build endpoints
-# api_router.include_router(inference.router, prefix="/inference", tags=["inference"])
-# api_router.include_router(avatar.router, prefix="/avatar", tags=["avatar"])
+api_router.include_router(session.router, prefix="/session", tags=["session"])
+api_router.include_router(generate.router, prefix="/generate", tags=["generate"])
 
