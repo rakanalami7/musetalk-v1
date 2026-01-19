@@ -69,8 +69,8 @@ async def generate_text_to_video(request: GenerateRequest):
         # For now, we'll return base64 encoded data or file paths
         
         return GenerateResponse(
-            video_url=f"/api/v1/generate/video/{os.path.basename(video_path)}",
-            audio_url=f"/api/v1/generate/audio/{os.path.basename(audio_path)}",
+            video_url=f"/api/v1/generate/video/{request.session_id}/{os.path.basename(video_path)}",
+            audio_url=f"/api/v1/generate/audio/{request.session_id}/{os.path.basename(audio_path)}",
             duration=0.0  # TODO: Calculate actual duration
         )
     
@@ -378,35 +378,43 @@ async def generate_video_musetalk(
         traceback.print_exc()
         raise
 
-@router.get("/video/{filename}")
-async def serve_video(filename: str):
+@router.get("/video/{session_id}/{filename}")
+async def serve_video(session_id: str, filename: str):
     """
     Serve generated video file.
     """
-    # TODO: Implement proper file serving with security checks
-    video_path = os.path.join(tempfile.gettempdir(), filename)
+    from server.config import settings
     
-    if not os.path.exists(video_path):
-        raise HTTPException(status_code=404, detail="Video not found")
+    # Look for video in the session's output directory
+    video_path = settings.RESULTS_DIR / session_id / "vid_output" / filename
     
-    with open(video_path, "rb") as f:
-        video_data = f.read()
+    if not video_path.exists():
+        raise HTTPException(status_code=404, detail=f"Video not found: {filename}")
     
-    return Response(content=video_data, media_type="video/mp4")
+    # Use FileResponse for better streaming performance
+    return FileResponse(
+        path=str(video_path),
+        media_type="video/mp4",
+        filename=filename
+    )
 
-@router.get("/audio/{filename}")
-async def serve_audio(filename: str):
+@router.get("/audio/{session_id}/{filename}")
+async def serve_audio(session_id: str, filename: str):
     """
     Serve generated audio file.
     """
-    # TODO: Implement proper file serving with security checks
-    audio_path = os.path.join(tempfile.gettempdir(), filename)
+    from server.config import settings
     
-    if not os.path.exists(audio_path):
-        raise HTTPException(status_code=404, detail="Audio not found")
+    # Look for audio in the session's output directory
+    audio_path = settings.RESULTS_DIR / session_id / "vid_output" / filename
     
-    with open(audio_path, "rb") as f:
-        audio_data = f.read()
+    if not audio_path.exists():
+        raise HTTPException(status_code=404, detail=f"Audio not found: {filename}")
     
-    return Response(content=audio_data, media_type="audio/mpeg")
+    # Use FileResponse for better streaming performance
+    return FileResponse(
+        path=str(audio_path),
+        media_type="audio/mpeg",
+        filename=filename
+    )
 
