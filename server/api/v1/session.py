@@ -305,10 +305,8 @@ def prepare_avatar_sync(session_id: str, avatar_path: str):
         with open(avatar_info_path, 'w') as f:
             json.dump(avatar_info, f, indent=2)
         
-        # Store in session
-        sessions[session_id].update({
-            "status": "ready",
-            "avatar_prepared": True,
+        # Prepare precomputed data dict
+        precomputed_data = {
             "session_dir": str(session_dir),
             "frame_list_cycle": frame_list_cycle,
             "coord_list_cycle": coord_list_cycle,
@@ -316,6 +314,14 @@ def prepare_avatar_sync(session_id: str, avatar_path: str):
             "mask_list_cycle": mask_list_cycle,
             "mask_coords_list_cycle": mask_coords_list_cycle,
             "num_frames": len(frame_list),
+            "fps": fps,
+        }
+        
+        # Store in session
+        sessions[session_id].update({
+            "status": "ready",
+            "avatar_prepared": True,
+            "precomputed_data": precomputed_data,
         })
         
         print(f"[Session {session_id}] Avatar preparation complete!")
@@ -324,7 +330,7 @@ def prepare_avatar_sync(session_id: str, avatar_path: str):
         if avatar_path == get_default_avatar_path():
             global default_avatar_cache
             with default_avatar_lock:
-                default_avatar_cache = sessions[session_id]["precomputed_data"].copy()
+                default_avatar_cache = precomputed_data.copy()
                 print(f"[Global] Default avatar cached for future sessions!")
         
     except Exception as e:
